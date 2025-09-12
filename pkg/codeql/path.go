@@ -1,6 +1,7 @@
 package codeql
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,7 @@ func AppendCodeQLPaths(cfgPath string, scanPaths, ignorePaths []string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("content of the config: ", string(out))
 	return os.WriteFile(cfgPath, out, 0o644)
 }
 
