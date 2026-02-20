@@ -293,20 +293,29 @@ func createOrUpdateProjectSettingsXML(projectSettingsFile string, altDeploymentR
 }
 
 func loadRemoteRepoCertificates(certificateList []string, client piperhttp.Downloader, flags *[]string, runner command.ExecRunner, fileUtils piperutils.FileUtils, javaCaCertFilePath string) error {
-	// TODO: make use of java/keytool package
-	existingJavaCaCerts := filepath.Join(os.Getenv("JAVA_HOME"), "jre", "lib", "security", "cacerts")
-
+	// Try both modern and legacy Java cacerts locations
+	javaHome := os.Getenv("JAVA_HOME")
+	var possibleCerts []string
 	if len(javaCaCertFilePath) > 0 {
-		existingJavaCaCerts = javaCaCertFilePath
+		possibleCerts = append(possibleCerts, javaCaCertFilePath)
 	}
+	possibleCerts = append(possibleCerts,
+		filepath.Join(javaHome, "lib", "security", "cacerts"),
+		filepath.Join(javaHome, "jre", "lib", "security", "cacerts"),
+	)
 
-	exists, err := fileUtils.FileExists(existingJavaCaCerts)
-	if err != nil {
-		return fmt.Errorf("Could not find the existing java cacerts: %w", err)
+	var existingJavaCaCerts string
+	var exists bool
+	var err error
+	for _, certPath := range possibleCerts {
+		exists, err = fileUtils.FileExists(certPath)
+		if err == nil && exists {
+			existingJavaCaCerts = certPath
+			break
+		}
 	}
-
 	if !exists {
-		return fmt.Errorf("Could not find the existing java cacerts: %w", err)
+		return fmt.Errorf("Could not find the existing java cacerts in any known location (tried: %v)", possibleCerts)
 	}
 
 	trustStore := filepath.Join(".pipeline", "mavenCaCerts")
